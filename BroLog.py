@@ -21,6 +21,47 @@ class BroLogFile:
 
         return
 
+    def default_transform(self, fields):
+        ntypes = len(self.field_types)
+        for fno in range(ntypes):
+
+            if fields[fno] == self.unset_field:
+                fields[fno] = None
+                continue
+
+            elif fields[fno] == self.empty_field:
+                fields[fno] = ''
+                continue
+
+            elif self.field_types[fno] == 'count' or self.field_types[fno] == 'port':
+                try:
+                    val = int(fields[fno])
+                    fields[fno] = val
+                except:
+                    pass
+
+            elif self.field_types[fno] == 'interval':
+                try:
+                    val = float(fields[fno])
+                    fields[fno] = val
+                except:
+                    pass
+
+            #elif self.field_types[fno] == 'addr':
+            #    try:
+            #        ip_addr = ip.ip_address(fields[fno])
+            #        fields[fno] = int(ip_addr)
+            #    except ValueError:
+            #        # IPv6 address?  TBD...
+            #        fields[fno] = 0
+
+            elif self.field_types[fno] == 'time':
+                ts = float(fields[fno])
+                t = dt.fromtimestamp(ts).isoformat()
+                fields[fno] = t
+
+        return
+
 
     def __init__(self, fname, row_transform = None, row_filter = None):
         """
@@ -82,7 +123,9 @@ class BroLogFile:
             fields = line.rstrip("\r\n").split(self.separator)
 
             if self.row_transform is not None:
-                self.row_transform(fields, self.field_types, self.field_names)
+                self.row_transform(fields)
+            else:
+                self.default_transform(fields)
 
             if self.row_filter is not None:
                 if self.row_filter(fields, self.field_types, self.field_names) is False: continue
@@ -99,53 +142,13 @@ class BroLogFile:
         return len(self.rows)
 
 
-def conn_transform(fields, types, names):
-    ntypes = len(types)
-    for fno in range(ntypes):
-
-        if fields[fno] == '-':
-            fields[fno] = None
-            continue
-
-        elif fields[fno] == '(empty)':
-            fields[fno] = ''
-            continue
-
-        elif types[fno] == 'count' or types[fno] == 'port':
-            try:
-                val = int(fields[fno])
-                fields[fno] = val
-            except:
-                pass
-
-        elif types[fno] == 'interval':
-            try:
-                val = float(fields[fno])
-                fields[fno] = val
-            except:
-                pass
-
-        elif types[fno] == 'addr':
-            try:
-                ip_addr = ip.ip_address(fields[fno])
-                fields[fno] = int(ip_addr)
-            except ValueError:
-                # IPv6 address?  TBD...
-                fields[fno] = 0
-
-        elif types[fno] == 'time':
-            ts = float(fields[fno])
-            t = dt.fromtimestamp(ts).isoformat()
-            fields[fno] = t
-
-    return
 
 def conn_filter(fields, types, names):
     return fields[6] == 'tcp'
 
+
 def main(argv):
-    con = BroLogFile('20161224/conn.log',
-                     row_transform = conn_transform )
+    con = BroLogFile(argv[1])
 
     #for n in range(10):
     #    print(con.rows[n])
